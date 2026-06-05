@@ -11,9 +11,9 @@ spring:
     time-zone: ${TZ:America/Mexico_City}
   datasource:
     driver-class-name: org.postgresql.Driver
-    url: ${DB_URL:jdbc:postgresql://ep-late-smoke-ambj5bts.c-5.us-east-1.aws.neon.tech/neondb}
-    username: ${DB_USER:neondb_owner}
-    password: ${DB_PASSWORD:npg_FdJviWm42bol}
+    url: ${DB_URL:jdbc:}
+    username: ${DB_USER:}
+    password: ${DB_PASSWORD:}
     hikari:
       minimum-idle: ${POOL_MINIMUM_IDLE:5}
       maximum-pool-size: ${POOL_MAX_SIZE:30}
