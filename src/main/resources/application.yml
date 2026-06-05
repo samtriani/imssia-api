@@ -1,0 +1,68 @@
+server:
+  port: ${PORT:8086}
+  servlet:
+    context-path: /msmedgemma-core
+
+spring:
+  application:
+    name: msmedgemma-core
+
+  jackson:
+    time-zone: ${TZ:America/Mexico_City}
+  datasource:
+    driver-class-name: org.postgresql.Driver
+    url: ${DB_URL:jdbc:postgresql://ep-late-smoke-ambj5bts.c-5.us-east-1.aws.neon.tech/neondb}
+    username: ${DB_USER:neondb_owner}
+    password: ${DB_PASSWORD:npg_FdJviWm42bol}
+    hikari:
+      minimum-idle: ${POOL_MINIMUM_IDLE:5}
+      maximum-pool-size: ${POOL_MAX_SIZE:30}
+      connection-timeout: ${POOL_CONNECTION_TIMEOUT:30000}
+      idle-timeout: ${POOL_IDLE_TIMEOUT:600000}
+      max-lifetime: ${POOL_LIFETIME:1800000}
+      pool-name: PuaPoolMs
+  jpa:
+    show-sql: true
+    hibernate:
+      ddl-auto: none
+      naming:
+        physical-strategy: org.hibernate.boot.model.naming.PhysicalNamingStrategyStandardImpl
+    properties:
+      hibernate:
+        jdbc:
+          lob:
+            non_contextual_creation: true
+        proc:
+          param_null_passing: true
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+
+  servlet:
+    multipart:
+      max-file-size: 80MB
+      max-request-size: 80MB
+
+management:
+  endpoints:
+    web:
+      base-path: /actuator
+      exposure:
+        include: health
+  endpoint:
+    auditevents:
+      enabled: true
+
+springdoc:
+  api-docs:
+    path: /api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+    tags-sorter: alpha
+    operations-sorter: alpha
+  packages-to-scan: mx.gob.imss.medgemma.controller
+
+lmstudio:
+  url: http://localhost:1234
+  api-token: ${LM_API_TOKEN:}
+  default-model: medgemma-4b-it
+  context-length: 8000
+  temperature: 0.0
