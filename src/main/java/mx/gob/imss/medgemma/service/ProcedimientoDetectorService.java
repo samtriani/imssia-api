@@ -20,7 +20,13 @@ public class ProcedimientoDetectorService {
         Map.entry("OBTURACION_EXTRACCION",   List.of("obturacion", "extraccion dental", "exodoncia", "empaste")),
         Map.entry("DETECCIONES_SIFILIS_VIH", List.of("sifilis", "vih", "prueba rapida", "deteccion")),
         Map.entry("CITOLOGIAS",              List.of("citologia", "papanicolaou", "pap ", "cervicovaginal", "colposcopia")),
-        Map.entry("CONSULTA_ESPECIALIDAD",   List.of("especialidad", "especialista", "consulta especializada")),
+        Map.entry("CONSULTA_ESPECIALIDAD",   List.of("especialidad", "especialista", "consulta especializada",
+                                                    "geriatria", "medicina interna", "cardiologia", "neurologia",
+                                                    "gastroenterologia", "endocrinologia", "nefrologia", "neumologia",
+                                                    "reumatologia", "oncologia", "dermatologia", "oftalmologia",
+                                                    "ortopedia", "cirugia general", "psiquiatria", "urologia",
+                                                    "subscecuente", "subsecuente", "valoracion geriatrica",
+                                                    "envio a ", "referencia a especialidad")),
         Map.entry("URGENCIAS",               List.of("urgencias", "urgencia", "servicio de urgencias", "area de urgencias")),
         Map.entry("DIAS_HOSPITALIZACION",    List.of("hospitalizacion", "internamiento", "dias de estancia", "dias cama", "ingreso hospitalario")),
         Map.entry("DIAS_CUNERO",             List.of("cunero", "cunas")),
@@ -34,7 +40,21 @@ public class ProcedimientoDetectorService {
         Map.entry("RAYOS_X",                 List.of("rayos x", "radiografia", "placa ", "rx ")),
         Map.entry("ULTRASONIDOS",            List.of("ultrasonido", "ecografia", "usg", "eco ", "sonografia")),
         Map.entry("ELECTROCARDIOGRAMAS",     List.of("electrocardiograma", "ecg", "ekg", "trazo electrocardiografico")),
-        Map.entry("TRASLADO_AMBULANCIA",     List.of("ambulancia", "traslado", "referencia medica", "contrarreferencia"))
+        Map.entry("TRASLADO_AMBULANCIA",        List.of("ambulancia", "traslado en ambulancia", "servicio de ambulancia",
+                                                        "transporte medico", "traslado medico")),
+        Map.entry("TAMIZAJE_DEPRESION_GDS",     List.of("gds", "tamizaje de depresion", "tamizaje de trastorno de depresion",
+                                                        "escala de depresion geriatrica", "positivo para sintomas depresivos")),
+        Map.entry("LAB_BIOMETRIA_HEMATICA",     List.of("biometria hematica", "leucocitos", "leu ", "plaquetas", "plaq ")),
+        Map.entry("LAB_QUIMICA_SANGUINEA",      List.of("quimica sanguinea", "colesterol", "trigliceridos", "hdl", "ldl",
+                                                        "creatinina", "bun ")),
+        Map.entry("LAB_HBA1C",                  List.of("hba1c", "hb1ac", "hemoglobina glucosilada", "glucosilada")),
+        Map.entry("LAB_PERFIL_TIROIDEO",        List.of("perfil tiroideo", "tsh", "t4l", "t3l", "tt3")),
+        Map.entry("LAB_VITAMINA_D",             List.of("vitamina d", "vit d")),
+        Map.entry("LAB_UROCULTIVO",             List.of("urocultivo")),
+        Map.entry("LAB_EGO",                    List.of("ego no patologico", "examen general de orina", "ego ")),
+        Map.entry("PRESCRIPCION_MEDICAMENTOS",  List.of("receta", "mg vo", "tableta")),
+        Map.entry("REFERENCIA_ESPECIALIDAD",    List.of("envio a gastroenterologia", "referencia a especialidad",
+                                                        "referencia medica", "envio a especialidad"))
     );
 
     /**
