@@ -11,6 +11,7 @@ import mx.gob.imss.medgemma.entity.PamtConsulta;
 import mx.gob.imss.medgemma.repository.PamcCostoProcedimientoRepository;
 import mx.gob.imss.medgemma.repository.PamtConsultaRepository;
 import mx.gob.imss.medgemma.service.CostosAnalisisService;
+import mx.gob.imss.medgemma.service.LmStudioService;
 import mx.gob.imss.medgemma.service.ProcedimientoDetectorService;
 import org.springframework.stereotype.Service;
 
@@ -30,6 +31,7 @@ public class CostosAnalisisServiceImpl implements CostosAnalisisService {
     private final PamtConsultaRepository           consultaRepo;
     private final PamcCostoProcedimientoRepository procedimientoRepo;
     private final ProcedimientoDetectorService     detector;
+    private final LmStudioService                  lmStudioService;
 
     private static final List<String> PROCS_POR_DIA =
             List.of("DIAS_HOSPITALIZACION", "DIAS_CUNERO", "DIAS_VENTILADOR");
@@ -67,8 +69,25 @@ public class CostosAnalisisServiceImpl implements CostosAnalisisService {
         }
 
         List<PamcCostoProcedimiento> catalogo = procedimientoRepo.findByIndActivoTrue();
-        List<ProcedimientoDetectadoDto> procedimientos =
-                detector.detectar(textoTotal.toString(), catalogo);
+
+        // ── Detección por keywords (rápida, determinista)
+        List<ProcedimientoDetectadoDto> porKeywords = detector.detectar(textoTotal.toString(), catalogo);
+
+        // ── Detección por MedGemma (inteligente, complementa keywords)
+        List<ProcedimientoDetectadoDto> porLLM = detectarConLLM(textoTotal.toString(), catalogo);
+
+        // ── Fusión: keywords + lo que solo detectó el LLM (sin duplicar por CVE)
+        Set<String> cvesYaDetectados = porKeywords.stream()
+                .map(ProcedimientoDetectadoDto::getCveProcedimiento)
+                .collect(Collectors.toSet());
+
+        List<ProcedimientoDetectadoDto> procedimientos = new ArrayList<>(porKeywords);
+        porLLM.stream()
+                .filter(p -> !cvesYaDetectados.contains(p.getCveProcedimiento()))
+                .forEach(procedimientos::add);
+
+        log.info("Detección — keywords: {} | LLM: {} | fusionados: {}",
+                porKeywords.size(), porLLM.size(), procedimientos.size());
 
         long diasHosp = calcularDias(request);
 
@@ -152,5 +171,55 @@ public class CostosAnalisisServiceImpl implements CostosAnalisisService {
 
     private boolean esPorDia(String cve) {
         return PROCS_POR_DIA.contains(cve);
+    }
+
+    // ── DETECCIÓN CON LLM ──────────────────────────────────────────────────────
+
+    private List<ProcedimientoDetectadoDto> detectarConLLM(String texto, List<PamcCostoProcedimiento> catalogo) {
+        if (texto == null || texto.isBlank()) return List.of();
+
+        String catalogoTexto = catalogo.stream()
+                .map(p -> p.getCveProcedimiento() + "|" + p.getDesProcedimiento())
+                .collect(Collectors.joining("\n"));
+
+        String textoNota = texto.length() > 3500 ? texto.substring(0, 3500) + "\n[...truncado...]" : texto;
+
+        String prompt = "Eres un asistente médico del IMSS. Analiza la siguiente nota médica e identifica "
+                + "qué procedimientos del catálogo están mencionados o claramente implicados en la nota.\n\n"
+                + "CATÁLOGO (formato CVE|Descripción):\n" + catalogoTexto
+                + "\n\nNOTA MÉDICA:\n" + textoNota
+                + "\n\nResponde ÚNICAMENTE con las claves CVE de los procedimientos detectados, "
+                + "una por línea, exactamente como aparecen en el catálogo. "
+                + "Sin explicación, sin numeración, sin texto adicional. "
+                + "Si no detectas ninguno, responde: NINGUNO";
+
+        try {
+            String respuesta = lmStudioService.chatSimple(prompt).getContent();
+            log.info("LLM detección costos — respuesta: {}", respuesta.replace("\n", " | "));
+
+            Map<String, PamcCostoProcedimiento> mapaC = catalogo.stream()
+                    .collect(Collectors.toMap(PamcCostoProcedimiento::getCveProcedimiento, p -> p));
+
+            return Arrays.stream(respuesta.split("\\R"))
+                    .map(String::trim)
+                    .filter(mapaC::containsKey)
+                    .map(cve -> toDtoProcedimiento(mapaC.get(cve)))
+                    .collect(Collectors.toList());
+
+        } catch (Exception e) {
+            log.warn("LLM no disponible para detección de costos, usando solo keywords: {}", e.getMessage());
+            return List.of();
+        }
+    }
+
+    private ProcedimientoDetectadoDto toDtoProcedimiento(PamcCostoProcedimiento p) {
+        return ProcedimientoDetectadoDto.builder()
+                .cveProcedimiento(p.getCveProcedimiento())
+                .desProcedimiento(p.getDesProcedimiento())
+                .numCostoBase(p.getNumCostoBase())
+                .numCosto1erNivel(p.getNumCosto1erNivel())
+                .numCosto2doNivel(p.getNumCosto2doNivel())
+                .numCosto3erNivel(p.getNumCosto3erNivel())
+                .build();
     }
 }
