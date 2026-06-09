@@ -21,6 +21,7 @@ import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
 import java.util.*;
+import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -69,12 +70,19 @@ public class CostosAnalisisServiceImpl implements CostosAnalisisService {
         }
 
         List<PamcCostoProcedimiento> catalogo = procedimientoRepo.findByIndActivoTrue();
+        String textoFinal = textoTotal.toString();
 
-        // ── Detección por keywords (rápida, determinista)
-        List<ProcedimientoDetectadoDto> porKeywords = detector.detectar(textoTotal.toString(), catalogo);
+        // ── Detección en paralelo: keywords y MedGemma corren al mismo tiempo
+        long t0 = System.currentTimeMillis();
 
-        // ── Detección por MedGemma (inteligente, complementa keywords)
-        List<ProcedimientoDetectadoDto> porLLM = detectarConLLM(textoTotal.toString(), catalogo);
+        CompletableFuture<List<ProcedimientoDetectadoDto>> futureKeywords =
+                CompletableFuture.supplyAsync(() -> detector.detectar(textoFinal, catalogo));
+
+        CompletableFuture<List<ProcedimientoDetectadoDto>> futureLLM =
+                CompletableFuture.supplyAsync(() -> detectarConLLM(textoFinal, catalogo));
+
+        List<ProcedimientoDetectadoDto> porKeywords = futureKeywords.join();
+        List<ProcedimientoDetectadoDto> porLLM      = futureLLM.join();
 
         // ── Fusión: keywords + lo que solo detectó el LLM (sin duplicar por CVE)
         Set<String> cvesYaDetectados = porKeywords.stream()
@@ -86,8 +94,9 @@ public class CostosAnalisisServiceImpl implements CostosAnalisisService {
                 .filter(p -> !cvesYaDetectados.contains(p.getCveProcedimiento()))
                 .forEach(procedimientos::add);
 
-        log.info("Detección — keywords: {} | LLM: {} | fusionados: {}",
-                porKeywords.size(), porLLM.size(), procedimientos.size());
+        log.info("Detección paralela — keywords: {} | LLM: {} | fusionados: {} | {}ms",
+                porKeywords.size(), porLLM.size(), procedimientos.size(),
+                System.currentTimeMillis() - t0);
 
         long diasHosp = calcularDias(request);
 
