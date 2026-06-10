@@ -23,7 +23,7 @@ public class WebConfig {
 				.sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
 				.authorizeHttpRequests(auth -> auth
 						.requestMatchers("/api/v1/auth/**", "/api/v1/imss-ai/**", "/api/v1/lmstudio/**",
-								"/api/v1/costos/**",
+								"/api/v1/costos/**", "/api/v1/orientador/**",
 								"/swagger-ui/**", "/swagger-ui.html", "/v3/api-docs/**", "/actuator/health")
 						.permitAll().anyRequest().authenticated());
 
