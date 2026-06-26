@@ -41,8 +41,8 @@ public class OrientadorServiceImpl implements OrientadorService {
 
         LmStudioChatRequest lmRequest = LmStudioChatRequest.builder()
                 .model(config.getDefaultModel())
-                .input(promptFinal)
-                .contextLength(config.getContextLength())
+                .messages(java.util.List.of(LmStudioChatRequest.userMsg(promptFinal)))
+                .maxTokens(config.getMaxTokens())
                 .temperature(config.getTemperature())
                 .build();
 

@@ -103,8 +103,10 @@ public class ImssAiContextServiceImpl implements ImssAiContextService {
 
 		// ── 3. Llamar a MedGemma via LM Studio
 		LmStudioChatRequest lmRequest = LmStudioChatRequest.builder()
-				.model(request.getModelo() != null ? request.getModelo() : config.getDefaultModel()).input(promptFinal)
-				.contextLength(config.getContextLength()).temperature(config.getTemperature()).build();
+				.model(request.getModelo() != null ? request.getModelo() : config.getDefaultModel())
+				.messages(java.util.List.of(LmStudioChatRequest.userMsg(promptFinal)))
+				.maxTokens(config.getMaxTokens())
+				.temperature(config.getTemperature()).build();
 
 		LmStudioChatResponse lmResponse = lmStudioClient.chat(lmRequest);
 

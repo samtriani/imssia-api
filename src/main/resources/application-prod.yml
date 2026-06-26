@@ -1,0 +1,10 @@
+lmstudio:
+  url: http://10.105.20.20:8000
+  default-model: qwen2.5-vl-72b
+  max-tokens: 1024
+  temperature: 0.1
+  top-p: 0.9
+  repetition-penalty: 1.1
+  stop:
+    - "<|endoftext|>"
+    - "<|im_end|>"

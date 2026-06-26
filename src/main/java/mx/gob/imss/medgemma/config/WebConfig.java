@@ -22,7 +22,7 @@ public class WebConfig {
 		http.csrf(AbstractHttpConfigurer::disable).cors(cors -> cors.configurationSource(corsConfigurationSource()))
 				.sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
 				.authorizeHttpRequests(auth -> auth
-						.requestMatchers("/api/v1/auth/**", "/api/v1/imss-ai/**", "/api/v1/lmstudio/**",
+						.requestMatchers("/api/v1/auth/**", "/api/v1/imss-ai/**", "/api/v1/llm/**",
 								"/api/v1/costos/**", "/api/v1/orientador/**",
 								"/swagger-ui/**", "/swagger-ui.html", "/v3/api-docs/**", "/actuator/health")
 						.permitAll().anyRequest().authenticated());
@@ -33,7 +33,7 @@ public class WebConfig {
 	@Bean
 	public CorsConfigurationSource corsConfigurationSource() {
 		CorsConfiguration config = new CorsConfiguration();
-		config.setAllowedOrigins(List.of("http://localhost:4200", "http://localhost:4201", "http://127.0.0.1:4200"));
+		config.setAllowedOriginPatterns(List.of("http://localhost:*", "http://127.0.0.1:*"));
 		config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
 		config.setAllowedHeaders(List.of("*"));
 		config.setAllowCredentials(false);

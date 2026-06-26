@@ -21,8 +21,8 @@ public class LmStudioServiceImpl implements LmStudioService {
     public LmStudioChatResponse chatSimple(String input, String model) {
         LmStudioChatRequest req = LmStudioChatRequest.builder()
             .model(model != null ? model : config.getDefaultModel())
-            .input(input)
-            .contextLength(config.getContextLength())
+            .messages(java.util.List.of(LmStudioChatRequest.userMsg(input)))
+            .maxTokens(config.getMaxTokens())
             .temperature(config.getTemperature())
             .build();
         log.info("chatSimple — modelo: {}, chars: {}", req.getModel(), input.length());

@@ -1,0 +1,7 @@
+lmstudio:
+  url: http://192.168.56.101:8080
+  default-model: medgemma-4b-it
+  max-tokens: 512
+  temperature: 0.1
+  top-p: 0.9
+  repetition-penalty: 1.1

@@ -61,8 +61,10 @@ springdoc:
   packages-to-scan: mx.gob.imss.medgemma.controller
 
 lmstudio:
-  url: http://localhost:1234
+  url: ${LLM_BASE_URL:http://10.105.20.20:8000}
   api-token: ${LM_API_TOKEN:}
-  default-model: medgemma-4b-it
-  context-length: 8000
-  temperature: 0.0
+  default-model: ${LLM_MODEL:qwen2.5-vl-72b}
+  max-tokens: ${LLM_MAX_TOKENS:1024}
+  temperature: ${LLM_TEMPERATURE:0.1}
+  top-p: ${LLM_TOP_P:0.9}
+  repetition-penalty: ${LLM_REPETITION_PENALTY:1.1}
