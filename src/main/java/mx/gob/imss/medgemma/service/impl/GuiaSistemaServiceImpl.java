@@ -28,6 +28,7 @@ import mx.gob.imss.medgemma.service.GuiaSistemaService;
 public class GuiaSistemaServiceImpl implements GuiaSistemaService {
 
     private static final Pattern PATRON_IMAGEN = Pattern.compile("!\\[[^\\]]*\\]\\(([^)]+)\\)");
+    private static final Pattern PATRON_VIDEO  = Pattern.compile("\\[▶[^\\]]*\\]\\(([^)]+)\\)");
     private static final Pattern PATRON_TITULO = Pattern.compile("^#\\s+(.+)$", Pattern.MULTILINE);
 
     private final Map<String, GuiaTema> temasPorClave = new LinkedHashMap<>();
@@ -56,9 +57,16 @@ public class GuiaSistemaServiceImpl implements GuiaSistemaService {
                     imagenes.add(imagenMatcher.group(1).trim());
                 }
 
-                String contenidoLimpio = PATRON_IMAGEN.matcher(original).replaceAll("").trim();
+                LinkedHashSet<String> videos = new LinkedHashSet<>();
+                Matcher videoMatcher = PATRON_VIDEO.matcher(original);
+                while (videoMatcher.find()) {
+                    videos.add(videoMatcher.group(1).trim());
+                }
 
-                temasPorClave.put(clave, new GuiaTema(titulo, contenidoLimpio, List.copyOf(imagenes)));
+                String contenidoLimpio = PATRON_VIDEO.matcher(
+                        PATRON_IMAGEN.matcher(original).replaceAll("")).replaceAll("").trim();
+
+                temasPorClave.put(clave, new GuiaTema(titulo, contenidoLimpio, List.copyOf(imagenes), List.copyOf(videos)));
 
                 contexto.append("=== GUÍA: ").append(titulo).append(" ===\n")
                         .append(contenidoLimpio).append("\n")
@@ -84,5 +92,11 @@ public class GuiaSistemaServiceImpl implements GuiaSistemaService {
         return tema != null ? tema.imagenes() : List.of();
     }
 
-    private record GuiaTema(String titulo, String contenido, List<String> imagenes) {}
+    @Override
+    public List<String> obtenerVideosPorTema(String clave) {
+        GuiaTema tema = temasPorClave.get(clave);
+        return tema != null ? tema.videos() : List.of();
+    }
+
+    private record GuiaTema(String titulo, String contenido, List<String> imagenes, List<String> videos) {}
 }

@@ -9,4 +9,7 @@ public interface GuiaSistemaService {
 
     /** Rutas (relativas a /assets) de las capturas de pantalla del tema indicado. */
     List<String> obtenerImagenesPorTema(String clave);
+
+    /** URLs de los videos del tema indicado. */
+    List<String> obtenerVideosPorTema(String clave);
 }

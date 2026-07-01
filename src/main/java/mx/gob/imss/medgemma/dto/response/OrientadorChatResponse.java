@@ -29,4 +29,7 @@ public class OrientadorChatResponse {
 
     /** Rutas (relativas a /assets) de las capturas de pantalla del tema detectado */
     private List<String> imagenesRelacionadas;
+
+    /** URLs de los videos de guía del tema detectado */
+    private List<String> videosRelacionados;
 }

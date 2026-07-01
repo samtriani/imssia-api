@@ -18,3 +18,5 @@ registrar sus datos de contacto.
 > dígitos consecutivos o repetidos (por ejemplo 5555..., 6666..., 7777...).
 
 ![Pantalla de registro de datos de contacto del paciente](/assets/guias/ecsus-medico/slide09.png)
+
+[▶ Video guía: Búsqueda de pacientes](http://192.168.56.101/media/videos/02-busqueda-pacientes.mp4)

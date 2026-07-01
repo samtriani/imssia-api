@@ -50,8 +50,9 @@ public class OrientadorServiceImpl implements OrientadorService {
 
         String tema = GuiaTopicDetector.detectarTema(request.getPregunta());
         List<String> imagenes = tema != null ? guiaSistemaService.obtenerImagenesPorTema(tema) : List.of();
+        List<String> videos   = tema != null ? guiaSistemaService.obtenerVideosPorTema(tema)   : List.of();
 
-        log.info("Orientador respuesta — tema detectado: {} | imágenes: {}", tema, imagenes.size());
+        log.info("Orientador respuesta — tema: {} | imágenes: {} | videos: {}", tema, imagenes.size(), videos.size());
 
         guardarLog(request, lmResponse, tema);
 
@@ -63,6 +64,7 @@ public class OrientadorServiceImpl implements OrientadorService {
                 .tokensPerSecond(lmResponse.getStats() != null ? lmResponse.getStats().getTokensPerSecond() : null)
                 .temaDetectado(tema)
                 .imagenesRelacionadas(imagenes)
+                .videosRelacionados(videos)
                 .build();
     }
 
