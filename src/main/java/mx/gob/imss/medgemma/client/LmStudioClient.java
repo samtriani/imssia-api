@@ -18,22 +18,41 @@ public class LmStudioClient {
     public LmStudioChatResponse chat(LmStudioChatRequest request) {
         LmStudioChatRequest enriched = enrich(request);
 
-        int chars = (enriched.getMessages() != null && !enriched.getMessages().isEmpty())
-                ? enriched.getMessages().get(0).getContent().length() : 0;
-        log.info("POST /v1/chat/completions — modelo: {}, chars: {}, topP: {}, repPenalty: {}",
-                enriched.getModel(), chars, enriched.getTopP(), enriched.getRepetitionPenalty());
+        try {
+            String requestJson = new com.fasterxml.jackson.databind.ObjectMapper()
+                    .writerWithDefaultPrettyPrinter()
+                    .writeValueAsString(enriched);
+            log.info("REQUEST JSON enviado a LLM:\n{}", requestJson);
+        } catch (Exception ex) {
+            log.warn("No se pudo serializar request para logging: {}", ex.getMessage());
+        }
+        int chars = (enriched.getMessages() != null)
+                ? enriched.getMessages().stream().mapToInt(m -> m.getContent() != null ? m.getContent().length() : 0).sum() : 0;
+        log.info("POST /v1/chat/completions — modelo: {}, chars total: {}, msgs: {}, minTokens: {}, topP: {}, repPenalty: {}, stop: {}",
+                enriched.getModel(), chars, enriched.getMessages() != null ? enriched.getMessages().size() : 0,
+                enriched.getMinTokens(), enriched.getTopP(), enriched.getRepetitionPenalty(), enriched.getStop());
 
         try {
-            return lmStudioWebClient.post()
+            String rawBody = lmStudioWebClient.post()
                     .uri("/v1/chat/completions")
                     .bodyValue(enriched)
                     .retrieve()
-                    .bodyToMono(LmStudioChatResponse.class)
+                    .bodyToMono(String.class)
                     .block();
+
+            log.info("RAW response LLM:\n{}", rawBody);
+
+            return new com.fasterxml.jackson.databind.ObjectMapper()
+                    .configure(com.fasterxml.jackson.databind.DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false)
+                    .readValue(rawBody, LmStudioChatResponse.class);
+
         } catch (WebClientResponseException ex) {
-            log.error("Error LLM {}: {} — {}", ex.getStatusCode(),
+            log.error("Error LLM {} — url: {} — body: {}", ex.getStatusCode(),
                     config.getUrl(), ex.getResponseBodyAsString());
             throw ex;
+        } catch (Exception ex) {
+            log.error("Error deserializando response LLM — {}", ex.getMessage());
+            throw new RuntimeException(ex);
         }
     }
 
@@ -46,6 +65,7 @@ public class LmStudioClient {
                 .model(req.getModel() != null ? req.getModel() : config.getDefaultModel())
                 .messages(req.getMessages())
                 .maxTokens(req.getMaxTokens() != null           ? req.getMaxTokens()           : config.getMaxTokens())
+                .minTokens(req.getMinTokens() != null           ? req.getMinTokens()           : config.getMinTokens())
                 .temperature(req.getTemperature() != null       ? req.getTemperature()          : config.getTemperature())
                 .topP(req.getTopP() != null                     ? req.getTopP()                 : config.getTopP())
                 .repetitionPenalty(req.getRepetitionPenalty() != null

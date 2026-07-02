@@ -28,8 +28,14 @@ import mx.gob.imss.medgemma.service.GuiaSistemaService;
 public class GuiaSistemaServiceImpl implements GuiaSistemaService {
 
     private static final Pattern PATRON_IMAGEN = Pattern.compile("!\\[[^\\]]*\\]\\(([^)]+)\\)");
-    private static final Pattern PATRON_VIDEO  = Pattern.compile("\\[▶[^\\]]*\\]\\(([^)]+)\\)");
     private static final Pattern PATRON_TITULO = Pattern.compile("^#\\s+(.+)$", Pattern.MULTILINE);
+
+    // Videos por tema — administrados aquí, nunca en los .md, para no contaminar el contexto del LLM
+    private static final Map<String, List<String>> VIDEOS_POR_TEMA = Map.of(
+        "06-auxiliares-dx-tx", List.of(
+            "http://msbovedaimss-documentos.apps.qaocp.imss.gob.mx/api/files/dcdc2d3d-959b-4010-b93a-1547da7d176e/145e2428-b206-4e6d-814c-b68dc889e728"
+        )
+    );
 
     private final Map<String, GuiaTema> temasPorClave = new LinkedHashMap<>();
     private String contextoGuias = "";
@@ -57,16 +63,9 @@ public class GuiaSistemaServiceImpl implements GuiaSistemaService {
                     imagenes.add(imagenMatcher.group(1).trim());
                 }
 
-                LinkedHashSet<String> videos = new LinkedHashSet<>();
-                Matcher videoMatcher = PATRON_VIDEO.matcher(original);
-                while (videoMatcher.find()) {
-                    videos.add(videoMatcher.group(1).trim());
-                }
+                String contenidoLimpio = PATRON_IMAGEN.matcher(original).replaceAll("").trim();
 
-                String contenidoLimpio = PATRON_VIDEO.matcher(
-                        PATRON_IMAGEN.matcher(original).replaceAll("")).replaceAll("").trim();
-
-                temasPorClave.put(clave, new GuiaTema(titulo, contenidoLimpio, List.copyOf(imagenes), List.copyOf(videos)));
+                temasPorClave.put(clave, new GuiaTema(titulo, contenidoLimpio, List.copyOf(imagenes)));
 
                 contexto.append("=== GUÍA: ").append(titulo).append(" ===\n")
                         .append(contenidoLimpio).append("\n")
@@ -94,9 +93,8 @@ public class GuiaSistemaServiceImpl implements GuiaSistemaService {
 
     @Override
     public List<String> obtenerVideosPorTema(String clave) {
-        GuiaTema tema = temasPorClave.get(clave);
-        return tema != null ? tema.videos() : List.of();
+        return VIDEOS_POR_TEMA.getOrDefault(clave, List.of());
     }
 
-    private record GuiaTema(String titulo, String contenido, List<String> imagenes, List<String> videos) {}
+    private record GuiaTema(String titulo, String contenido, List<String> imagenes) {}
 }

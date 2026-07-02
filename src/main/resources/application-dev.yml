@@ -4,4 +4,3 @@ lmstudio:
   max-tokens: 512
   temperature: 0.1
   top-p: 0.9
-  repetition-penalty: 1.1

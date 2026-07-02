@@ -14,6 +14,7 @@ public class LmStudioChatRequest {
     private List<Message> messages;
     private Double       temperature;
     @JsonProperty("max_tokens")         private Integer      maxTokens;
+    @JsonProperty("min_tokens")         private Integer      minTokens;
     @JsonProperty("top_p")              private Double       topP;
     @JsonProperty("repetition_penalty") private Double       repetitionPenalty;
     @JsonInclude(JsonInclude.Include.NON_EMPTY)

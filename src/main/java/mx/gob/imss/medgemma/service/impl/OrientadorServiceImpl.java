@@ -35,13 +35,15 @@ public class OrientadorServiceImpl implements OrientadorService {
     public OrientadorChatResponse chat(OrientadorChatRequest request) {
         log.info("Orientador chat — matrícula: {} | pregunta: {}", request.getNumMatricula(), request.getPregunta());
 
-        String promptFinal = SystemPromptBuilder.buildOrientador()
-                + "\n\n" + guiaSistemaService.obtenerContextoGuias()
-                + "\n\n══ PREGUNTA DEL USUARIO ══\n" + request.getPregunta();
+        String systemPrompt = SystemPromptBuilder.buildOrientador()
+                + "\n\n" + guiaSistemaService.obtenerContextoGuias();
 
         LmStudioChatRequest lmRequest = LmStudioChatRequest.builder()
                 .model(config.getDefaultModel())
-                .messages(java.util.List.of(LmStudioChatRequest.userMsg(promptFinal)))
+                .messages(java.util.List.of(
+                        LmStudioChatRequest.systemMsg(systemPrompt),
+                        LmStudioChatRequest.userMsg(request.getPregunta())
+                ))
                 .maxTokens(config.getMaxTokens())
                 .temperature(config.getTemperature())
                 .build();

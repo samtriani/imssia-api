@@ -17,9 +17,10 @@ public class LmStudioConfig {
     private String       apiToken          = "";
     private String       defaultModel      = "medgemma-4b-it";
     private Integer      maxTokens         = 1024;
+    private Integer      minTokens         = null;
     private Double       temperature       = 0.1;
     private Double       topP              = 0.9;
-    private Double       repetitionPenalty = 1.1;
+    private Double       repetitionPenalty = null;
     private List<String> stop              = new ArrayList<>();
 
     @Bean

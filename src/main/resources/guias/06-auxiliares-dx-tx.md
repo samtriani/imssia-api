@@ -57,5 +57,3 @@ y una Solicitud de Rayos X desde el módulo de Auxiliares de Dx y Tx.
 7. Seleccionar "Imprimir" para imprimir la solicitud registrada.
 
 ![Pantalla para imprimir la solicitud de rayos X](/assets/guias/ecsus-medico/slide53.png)
-
-[▶ Video guía: Genera Receta Médica](http://msbovedaimss-documentos.apps.qaocp.imss.gob.mx/api/files/dcdc2d3d-959b-4010-b93a-1547da7d176e/145e2428-b206-4e6d-814c-b68dc889e728)
