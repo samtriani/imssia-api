@@ -60,6 +60,11 @@ springdoc:
     operations-sorter: alpha
   packages-to-scan: mx.gob.imss.medgemma.controller
 
+orientador:
+  # Si es false, el Orientador no escribe en imss_ai.pamt_rag_consulta_log.
+  # En el pod de OpenShift ponlo en false (ORIENTADOR_RAG_LOG_ENABLED=false).
+  rag-log-enabled: ${ORIENTADOR_RAG_LOG_ENABLED:true}
+
 lmstudio:
   url: ${LLM_BASE_URL:http://10.105.20.20:8000}
   api-token: ${LM_API_TOKEN:}

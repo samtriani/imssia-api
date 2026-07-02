@@ -31,6 +31,10 @@ public class OrientadorServiceImpl implements OrientadorService {
     private final LmStudioConfig               config;
     private final PamtRagConsultaLogRepository logRepo;
 
+    /** Si es false, el Orientador NO escribe en imss_ai.pamt_rag_consulta_log. */
+    @org.springframework.beans.factory.annotation.Value("${orientador.rag-log-enabled:true}")
+    private boolean ragLogEnabled;
+
     @Override
     public OrientadorChatResponse chat(OrientadorChatRequest request) {
         log.info("Orientador chat — matrícula: {} | pregunta: {}", request.getNumMatricula(), request.getPregunta());
@@ -71,6 +75,10 @@ public class OrientadorServiceImpl implements OrientadorService {
     }
 
     private void guardarLog(OrientadorChatRequest req, LmStudioChatResponse res, String tema) {
+        if (!ragLogEnabled) {
+            log.debug("RAG log del Orientador deshabilitado (orientador.rag-log-enabled=false) — no se escribe pamt_rag_consulta_log");
+            return;
+        }
         try {
             PamtRagConsultaLog entry = new PamtRagConsultaLog();
             entry.setDesQuery("[ORIENTADOR] " + req.getPregunta() + (tema != null ? " [tema:" + tema + "]" : ""));

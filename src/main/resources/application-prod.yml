@@ -13,3 +13,7 @@ lmstudio:
   stop:
     - "<|endoftext|>"
     - "<|im_end|>"
+
+orientador:
+  # El Orientador no escribe en imss_ai.pamt_rag_consulta_log en este despliegue.
+  rag-log-enabled: false
