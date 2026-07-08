@@ -39,8 +39,19 @@ public class OrientadorServiceImpl implements OrientadorService {
     public OrientadorChatResponse chat(OrientadorChatRequest request) {
         log.info("Orientador chat — matrícula: {} | pregunta: {}", request.getNumMatricula(), request.getPregunta());
 
-        String systemPrompt = SystemPromptBuilder.buildOrientador()
-                + "\n\n" + guiaSistemaService.obtenerContextoGuias();
+        // 1) Detectar el tema ANTES de llamar al LLM, para inyectar solo la guía relevante (RAG selectivo).
+        String tema = GuiaTopicDetector.detectarTema(request.getPregunta());
+
+        // 2) Contexto: solo la guía del tema detectado; si no se detecta tema, fallback a todas las guías.
+        String contexto = tema != null ? guiaSistemaService.obtenerContextoPorTema(tema) : null;
+        boolean contextoSelectivo = contexto != null;
+        if (contexto == null) {
+            contexto = guiaSistemaService.obtenerContextoGuias();
+        }
+
+        String systemPrompt = SystemPromptBuilder.buildOrientador() + "\n\n" + contexto;
+        log.info("Orientador contexto — tema: {} | modo: {} | chars contexto: {}",
+                tema, contextoSelectivo ? "guia-unica" : "todas-las-guias", contexto.length());
 
         LmStudioChatRequest lmRequest = LmStudioChatRequest.builder()
                 .model(config.getDefaultModel())
@@ -54,9 +65,8 @@ public class OrientadorServiceImpl implements OrientadorService {
 
         LmStudioChatResponse lmResponse = lmStudioClient.chat(lmRequest);
 
-        String tema = GuiaTopicDetector.detectarTema(request.getPregunta());
         List<String> imagenes = tema != null ? guiaSistemaService.obtenerImagenesPorTema(tema) : List.of();
-        List<String> videos   = tema != null ? guiaSistemaService.obtenerVideosPorTema(tema)   : List.of();
+        List<String> videos   = guiaSistemaService.obtenerVideos(request.getPregunta(), tema);
 
         log.info("Orientador respuesta — tema: {} | imágenes: {} | videos: {}", tema, imagenes.size(), videos.size());
 

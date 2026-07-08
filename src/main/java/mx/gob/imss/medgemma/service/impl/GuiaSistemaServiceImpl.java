@@ -30,11 +30,42 @@ public class GuiaSistemaServiceImpl implements GuiaSistemaService {
     private static final Pattern PATRON_IMAGEN = Pattern.compile("!\\[[^\\]]*\\]\\(([^)]+)\\)");
     private static final Pattern PATRON_TITULO = Pattern.compile("^#\\s+(.+)$", Pattern.MULTILINE);
 
-    // Videos por tema — administrados aquí, nunca en los .md, para no contaminar el contexto del LLM
-    private static final Map<String, List<String>> VIDEOS_POR_TEMA = Map.of(
-        "06-auxiliares-dx-tx", List.of(
-            "http://msbovedaimss-documentos.apps.qaocp.imss.gob.mx/api/files/dcdc2d3d-959b-4010-b93a-1547da7d176e/145e2428-b206-4e6d-814c-b68dc889e728"
-        )
+    // Base fija de la bóveda documental; a cada URL solo se le concatena el fileId del video.
+    private static final String VIDEO_BASE =
+        "http://msbovedaimss-documentos.apps.qaocp.imss.gob.mx/api/files/dcdc2d3d-959b-4010-b93a-1547da7d176e/";
+
+    // fileIds de los videos ECSUS (bóveda documental) — una constante por video, sin duplicar URL.
+    private static final String V_ACCESO      = VIDEO_BASE + "f99e924d-e543-44f1-8067-39f4b7894423"; // ECSUS-1 Acceso y búsqueda
+    private static final String V_AGENDAR     = VIDEO_BASE + "d3df4980-08f5-412d-87d4-b48841230da1"; // ECSUS-2 Agendar cita
+    private static final String V_CONFIRMAR   = VIDEO_BASE + "97e638e6-c3d6-4cf0-911b-f9adc70bf4e6"; // ECSUS-3 Confirmar cita
+    private static final String V_ATENCION    = VIDEO_BASE + "bbc8b3c4-4cf3-4c97-974e-3e1efb432569"; // ECSUS-4 Brindar atención médica
+    private static final String V_RECETA_GRAL = VIDEO_BASE + "c3f8da68-c481-4fbe-972d-37ddc1d75748"; // ECSUS-6 Receta + laboratorio + otros
+    private static final String V_RECETA      = VIDEO_BASE + "fecc61c4-e2cd-4e5a-9d5f-76c4c132870f"; // ECSUS-7 Generar receta médica
+    private static final String V_LABORATORIO = VIDEO_BASE + "60411215-cb5a-47f7-aa03-62cced7bf4e4"; // ECSUS-8 Laboratorio
+    private static final String V_RAYOS       = VIDEO_BASE + "526aff39-7d8a-4f99-8a7e-b30863a9ec4d"; // ECSUS-9 Rayos X
+    private static final String V_HISTORIA    = VIDEO_BASE + "3b69d977-6929-4659-90c7-a392652ddbfd"; // ECSUS-10 Historia clínica
+
+    // Videos por tema — vista general del tema; se usa como fallback cuando la pregunta no
+    // coincide con una sub-categoría específica. Administrados aquí, nunca en los .md.
+    private static final Map<String, List<String>> VIDEOS_POR_TEMA = Map.ofEntries(
+        Map.entry("01-inicio-sesion",      List.of(V_ACCESO)),
+        Map.entry("02-busqueda-pacientes", List.of(V_ACCESO)),
+        Map.entry("03-historia-clinica",   List.of(V_HISTORIA)),
+        Map.entry("04-agenda-citas",       List.of(V_AGENDAR, V_CONFIRMAR)),
+        Map.entry("05-nota-medica",        List.of(V_ATENCION)),
+        Map.entry("06-auxiliares-dx-tx",   List.of(V_RECETA_GRAL, V_RECETA, V_LABORATORIO, V_RAYOS))
+    );
+
+    // Selección FINA de videos por palabra clave (más específica que el tema de la guía).
+    // Evita, p. ej., devolver los videos de laboratorio/rayos X cuando la pregunta es solo de receta.
+    // El tema 06 (auxiliares dx/tx) agrupa 3 procedimientos; aquí se desglosan.
+    private static final List<Map.Entry<List<String>, List<String>>> VIDEOS_POR_KEYWORD = List.of(
+        Map.entry(List.of("receta", "medicamento", "prescrip", "imprimir receta"),
+                  List.of(V_RECETA, V_RECETA_GRAL)),                              // ECSUS-7 (+ ECSUS-6 general)
+        Map.entry(List.of("laboratorio", "solicitud de laboratorio", "análisis clínico", "analisis clinico"),
+                  List.of(V_LABORATORIO, V_RECETA_GRAL)),                         // ECSUS-8 (+ ECSUS-6 general)
+        Map.entry(List.of("rayos", "rayos x", "rayos equis", "radiograf", "imagenolog"),
+                  List.of(V_RAYOS))                                              // ECSUS-9
     );
 
     private final Map<String, GuiaTema> temasPorClave = new LinkedHashMap<>();
@@ -86,6 +117,15 @@ public class GuiaSistemaServiceImpl implements GuiaSistemaService {
     }
 
     @Override
+    public String obtenerContextoPorTema(String clave) {
+        GuiaTema tema = temasPorClave.get(clave);
+        if (tema == null) return null;
+        return "=== GUÍA: " + tema.titulo() + " ===\n"
+                + tema.contenido() + "\n"
+                + "=== FIN GUÍA ===";
+    }
+
+    @Override
     public List<String> obtenerImagenesPorTema(String clave) {
         GuiaTema tema = temasPorClave.get(clave);
         return tema != null ? tema.imagenes() : List.of();
@@ -94,6 +134,21 @@ public class GuiaSistemaServiceImpl implements GuiaSistemaService {
     @Override
     public List<String> obtenerVideosPorTema(String clave) {
         return VIDEOS_POR_TEMA.getOrDefault(clave, List.of());
+    }
+
+    @Override
+    public List<String> obtenerVideos(String pregunta, String tema) {
+        if (pregunta != null && !pregunta.isBlank()) {
+            String texto = pregunta.toLowerCase();
+            LinkedHashSet<String> hits = new LinkedHashSet<>();
+            for (Map.Entry<List<String>, List<String>> bucket : VIDEOS_POR_KEYWORD) {
+                for (String palabra : bucket.getKey()) {
+                    if (texto.contains(palabra)) { hits.addAll(bucket.getValue()); break; }
+                }
+            }
+            if (!hits.isEmpty()) return List.copyOf(hits);
+        }
+        return obtenerVideosPorTema(tema);   // fallback: todos los videos del tema
     }
 
     private record GuiaTema(String titulo, String contenido, List<String> imagenes) {}
