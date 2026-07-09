@@ -56,6 +56,48 @@ public class LmStudioClient {
         }
     }
 
+    private static final com.fasterxml.jackson.databind.ObjectMapper STREAM_MAPPER =
+            new com.fasterxml.jackson.databind.ObjectMapper();
+
+    /**
+     * Versión en streaming (SSE): emite los fragmentos de texto (delta.content) del LLM
+     * conforme se generan. Reutiliza enrich() para los defaults del config.
+     */
+    public reactor.core.publisher.Flux<String> chatStream(LmStudioChatRequest request) {
+        LmStudioChatRequest enriched = enrich(request);
+        log.info("POST /v1/chat/completions (stream) — modelo: {}, msgs: {}, maxTokens: {}",
+                enriched.getModel(),
+                enriched.getMessages() != null ? enriched.getMessages().size() : 0,
+                enriched.getMaxTokens());
+
+        return lmStudioWebClient.post()
+                .uri("/v1/chat/completions")
+                .bodyValue(enriched)
+                .retrieve()
+                .bodyToFlux(String.class)
+                .filter(chunk -> chunk != null && !chunk.isBlank() && !"[DONE]".equals(chunk.trim()))
+                .map(LmStudioClient::extraerDelta)
+                .filter(texto -> texto != null && !texto.isEmpty())
+                .onErrorResume(ex -> {
+                    log.error("Error en stream LLM — {}", ex.toString());
+                    return reactor.core.publisher.Flux.empty();
+                });
+    }
+
+    /** Extrae choices[0].delta.content de un fragmento SSE del LLM. */
+    private static String extraerDelta(String sseData) {
+        try {
+            com.fasterxml.jackson.databind.JsonNode node = STREAM_MAPPER.readTree(sseData);
+            com.fasterxml.jackson.databind.JsonNode choices = node.path("choices");
+            if (choices.isArray() && !choices.isEmpty()) {
+                return choices.get(0).path("delta").path("content").asText("");
+            }
+        } catch (Exception ignore) {
+            // fragmento no-JSON; se ignora
+        }
+        return "";
+    }
+
     /**
      * Aplica defaults del config solo cuando el caller no especificó el valor.
      * Prioridad: valor del request > valor del config.
@@ -66,6 +108,7 @@ public class LmStudioClient {
                 .messages(req.getMessages())
                 .maxTokens(req.getMaxTokens() != null           ? req.getMaxTokens()           : config.getMaxTokens())
                 .minTokens(req.getMinTokens() != null           ? req.getMinTokens()           : config.getMinTokens())
+                .stream(req.getStream())
                 .temperature(req.getTemperature() != null       ? req.getTemperature()          : config.getTemperature())
                 .topP(req.getTopP() != null                     ? req.getTopP()                 : config.getTopP())
                 .repetitionPenalty(req.getRepetitionPenalty() != null

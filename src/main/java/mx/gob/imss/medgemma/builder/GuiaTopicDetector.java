@@ -24,9 +24,12 @@ public class GuiaTopicDetector {
     private static final Map<String, List<String>> KEYWORDS = new LinkedHashMap<>();
     static {
         KEYWORDS.put(INICIO_SESION, List.of(
-                "iniciar sesion", "iniciar sesión", "login", "contraseña", "contrasena",
+                "iniciar sesion", "iniciar sesión", "inicio de sesion", "inicio de sesión",
+                "inicio sesion", "inicio sesión", "iniciar la sesion", "iniciar la sesión",
+                "login", "acceso", "acceso al sistema", "ingresar al sistema", "entrar al sistema",
+                "ingreso al sistema", "contraseña", "contrasena",
                 "matricula", "matrícula", "olvide mi contraseña", "olvidé mi contraseña",
-                "restablecer contraseña", "restablecer contrasena", "acceso al sistema",
+                "restablecer contraseña", "restablecer contrasena",
                 "no puedo entrar", "credenciales"));
 
         KEYWORDS.put(BUSQUEDA_PACIENTES, List.of(

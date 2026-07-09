@@ -1257,4 +1257,23 @@ public class SystemPromptBuilder {
                 (por ejemplo "¿qué es ECSUS?" o "¿qué módulos tiene la agenda?").
                 """;
     }
+
+    /**
+     * Bloque que se añade al system prompt del Orientador cuando el usuario pide
+     * una explicación detallada ("a detalle", "a fondo", etc.). Amplía la respuesta
+     * sin permitir que el modelo invente información fuera de la guía.
+     */
+    public static String instruccionDetalle() {
+        return """
+                NIVEL DE DETALLE — EXPLICACIÓN AMPLIADA:
+                El usuario pidió una explicación DETALLADA. Para esta respuesta:
+                - Organiza los pasos en secciones con encabezados en negritas.
+                - Explica brevemente el PROPÓSITO de cada paso o sección y qué verá el médico en pantalla.
+                - Incluye las notas, advertencias y validaciones relevantes que aparezcan en la guía.
+                - Usa los nombres exactos de botones, campos y menús.
+                - Cierra con un breve resumen o consejo práctico si la guía lo permite.
+                - NO inventes pasos, campos ni información que no esté en la guía: solo amplía y \
+                explica lo que la guía ya contiene.
+                """;
+    }
 }

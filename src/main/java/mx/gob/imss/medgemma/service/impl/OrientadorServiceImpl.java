@@ -2,9 +2,14 @@ package mx.gob.imss.medgemma.service.impl;
 
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
+import org.springframework.http.codec.ServerSentEvent;
 import org.springframework.stereotype.Service;
+
+import reactor.core.publisher.Flux;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -39,6 +44,54 @@ public class OrientadorServiceImpl implements OrientadorService {
     public OrientadorChatResponse chat(OrientadorChatRequest request) {
         log.info("Orientador chat — matrícula: {} | pregunta: {}", request.getNumMatricula(), request.getPregunta());
 
+        Preparado p = preparar(request, false);
+        log.info("Orientador contexto — tema: {} | modo: {} | detalle: {}",
+                p.tema(), p.contextoSelectivo() ? "guia-unica" : "todas-las-guias", p.detallado());
+
+        LmStudioChatResponse lmResponse = lmStudioClient.chat(p.lmRequest());
+        log.info("Orientador respuesta — tema: {} | imágenes: {} | videos: {}",
+                p.tema(), p.imagenes().size(), p.videos().size());
+
+        guardarLog(request, lmResponse, p.tema());
+
+        return OrientadorChatResponse.builder()
+                .respuesta(lmResponse.getContent())
+                .responseId(lmResponse.getResponseId())
+                .modelInstanceId(lmResponse.getModelInstanceId())
+                .totalOutputTokens(lmResponse.getStats() != null ? lmResponse.getStats().getTotalOutputTokens() : null)
+                .tokensPerSecond(lmResponse.getStats() != null ? lmResponse.getStats().getTokensPerSecond() : null)
+                .temaDetectado(p.tema())
+                .imagenesRelacionadas(p.imagenes())
+                .videosRelacionados(p.videos())
+                .build();
+    }
+
+    @Override
+    public Flux<ServerSentEvent<Object>> chatStream(OrientadorChatRequest request) {
+        log.info("Orientador chat STREAM — matrícula: {} | pregunta: {}", request.getNumMatricula(), request.getPregunta());
+
+        Preparado p = preparar(request, true);
+        log.info("Orientador contexto (stream) — tema: {} | modo: {} | detalle: {}",
+                p.tema(), p.contextoSelectivo() ? "guia-unica" : "todas-las-guias", p.detallado());
+
+        // Evento inicial con los metadatos (ya conocidos antes de generar): tema, imágenes y videos.
+        Map<String, Object> metaData = new HashMap<>();
+        metaData.put("temaDetectado", p.tema());
+        metaData.put("imagenesRelacionadas", p.imagenes());
+        metaData.put("videosRelacionados", p.videos());
+        ServerSentEvent<Object> meta = ServerSentEvent.<Object>builder().event("meta").data(metaData).build();
+
+        // Fragmentos de texto conforme el LLM los genera.
+        Flux<ServerSentEvent<Object>> deltas = lmStudioClient.chatStream(p.lmRequest())
+                .map(texto -> ServerSentEvent.<Object>builder().event("delta").data(Map.of("text", texto)).build());
+
+        ServerSentEvent<Object> done = ServerSentEvent.<Object>builder().event("done").data(Map.of("done", true)).build();
+
+        return Flux.concat(Flux.just(meta), deltas, Flux.just(done));
+    }
+
+    /** Prepara tema, contexto (RAG selectivo), nivel de detalle y el request al LLM (compartido por chat y chatStream). */
+    private Preparado preparar(OrientadorChatRequest request, boolean stream) {
         // 1) Detectar el tema ANTES de llamar al LLM, para inyectar solo la guía relevante (RAG selectivo).
         String tema = GuiaTopicDetector.detectarTema(request.getPregunta());
 
@@ -49,39 +102,41 @@ public class OrientadorServiceImpl implements OrientadorService {
             contexto = guiaSistemaService.obtenerContextoGuias();
         }
 
-        String systemPrompt = SystemPromptBuilder.buildOrientador() + "\n\n" + contexto;
-        log.info("Orientador contexto — tema: {} | modo: {} | chars contexto: {}",
-                tema, contextoSelectivo ? "guia-unica" : "todas-las-guias", contexto.length());
+        // 3) Nivel de detalle: si la pregunta pide una explicación detallada, ampliar el prompt y dar más margen de tokens.
+        boolean detallado = solicitaDetalle(request.getPregunta());
+        String systemPrompt = SystemPromptBuilder.buildOrientador() + "\n\n" + contexto
+                + (detallado ? "\n\n" + SystemPromptBuilder.instruccionDetalle() : "");
 
         LmStudioChatRequest lmRequest = LmStudioChatRequest.builder()
                 .model(config.getDefaultModel())
-                .messages(java.util.List.of(
+                .messages(List.of(
                         LmStudioChatRequest.systemMsg(systemPrompt),
                         LmStudioChatRequest.userMsg(request.getPregunta())
                 ))
-                .maxTokens(config.getMaxTokens())
+                .maxTokens(detallado ? Math.max(config.getMaxTokens(), 2048) : config.getMaxTokens())
                 .temperature(config.getTemperature())
+                .stream(stream ? Boolean.TRUE : null)
                 .build();
-
-        LmStudioChatResponse lmResponse = lmStudioClient.chat(lmRequest);
 
         List<String> imagenes = tema != null ? guiaSistemaService.obtenerImagenesPorTema(tema) : List.of();
         List<String> videos   = guiaSistemaService.obtenerVideos(request.getPregunta(), tema);
 
-        log.info("Orientador respuesta — tema: {} | imágenes: {} | videos: {}", tema, imagenes.size(), videos.size());
+        return new Preparado(tema, contextoSelectivo, detallado, lmRequest, imagenes, videos);
+    }
 
-        guardarLog(request, lmResponse, tema);
+    private record Preparado(String tema, boolean contextoSelectivo, boolean detallado,
+                             LmStudioChatRequest lmRequest, List<String> imagenes, List<String> videos) {}
 
-        return OrientadorChatResponse.builder()
-                .respuesta(lmResponse.getContent())
-                .responseId(lmResponse.getResponseId())
-                .modelInstanceId(lmResponse.getModelInstanceId())
-                .totalOutputTokens(lmResponse.getStats() != null ? lmResponse.getStats().getTotalOutputTokens() : null)
-                .tokensPerSecond(lmResponse.getStats() != null ? lmResponse.getStats().getTokensPerSecond() : null)
-                .temaDetectado(tema)
-                .imagenesRelacionadas(imagenes)
-                .videosRelacionados(videos)
-                .build();
+    /** Detecta si la pregunta solicita una explicación detallada/ampliada. */
+    private static boolean solicitaDetalle(String pregunta) {
+        if (pregunta == null) return false;
+        String t = pregunta.toLowerCase();
+        return t.contains("a detalle") || t.contains("detallad")
+                || t.contains("a fondo") || t.contains("con detalle")
+                || t.contains("más detalle") || t.contains("mas detalle")
+                || t.contains("explica bien") || t.contains("explícame bien") || t.contains("explicame bien")
+                || t.contains("explicación detallada") || t.contains("explicacion detallada")
+                || t.contains("lo más completo") || t.contains("lo mas completo");
     }
 
     private void guardarLog(OrientadorChatRequest req, LmStudioChatResponse res, String tema) {
