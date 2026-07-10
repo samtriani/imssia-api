@@ -133,6 +133,7 @@ public class GuiaSistemaServiceImpl implements GuiaSistemaService {
 
     @Override
     public List<String> obtenerVideosPorTema(String clave) {
+        if (clave == null) return List.of();   // Map.ofEntries es inmutable y no admite key null
         return VIDEOS_POR_TEMA.getOrDefault(clave, List.of());
     }
 
